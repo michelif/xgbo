@@ -17,9 +17,12 @@ def xgb_quantile_eval(preds, dmatrix, quantile=0.5):
     @rtype: float
     """
     labels = dmatrix.get_label()
-    return ('q{}_loss'.format(quantile),
-            np.nanmean((preds >= labels) * (1 - quantile) * (preds - labels) +
-                       (preds < labels) * quantile * (labels - preds)))
+    return (
+        "q{}_loss".format(quantile),
+        np.nanmean(
+            (preds >= labels) * (1 - quantile) * (preds - labels) + (preds < labels) * quantile * (labels - preds)
+        ),
+    )
 
 
 def xgb_quantile_obj(preds, dmatrix, quantile=0.5):

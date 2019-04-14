@@ -4,32 +4,35 @@ from matplotlib import gridspec
 from matplotlib.ticker import FormatStrFormatter
 from sklearn import metrics
 
+
 def rmseff(x, c=0.68):
     """Compute half-width of the shortest interval
     containing a fraction 'c' of items in a 1D array.
     """
-    x = np.sort(x, kind='mergesort')
-    m = int(c*len(x)) + 1
-    return np.min(x_sorted[m:] - x_sorted[:-m])/2.0
+    x = np.sort(x, kind="mergesort")
+    m = int(c * len(x)) + 1
+    return np.min(x_sorted[m:] - x_sorted[:-m]) / 2.0
+
 
 class ROCPlot:
+    def __init__(
+        self,
+        logscale=False,
+        xlabel=None,
+        ylabel=None,
+        xlim=None,
+        ylim=None,
+        rlim=None,
+        height_ratios=[2, 1],
+        percent=False,
+        grid=False,
+        ncol=1,
+    ):
 
-    def __init__(self,
-                 logscale=False,
-                 xlabel=None,
-                 ylabel=None,
-                 xlim=None,
-                 ylim=None,
-                 rlim=None,
-                 height_ratios=[2,1],
-                 percent=False,
-                 grid=False,
-                 ncol=1):
-
-        self.gs = gridspec.GridSpec(2, 1, height_ratios=height_ratios) 
+        self.gs = gridspec.GridSpec(2, 1, height_ratios=height_ratios)
 
         self.axis = plt.subplot(self.gs[0])
-        self.axr  = plt.subplot(self.gs[1])
+        self.axr = plt.subplot(self.gs[1])
 
         self.gs.update(wspace=0.025, hspace=0.075)
         plt.setp(self.axis.get_xticklabels(), visible=False)
@@ -50,8 +53,8 @@ class ROCPlot:
             ylabel = ylabel + " [%]"
 
         self._logscale = logscale
-        self._percent  = percent
-        self._scale    = 1 + 99 * percent
+        self._percent = percent
+        self._scale = 1 + 99 * percent
 
         self.axis.set_ylabel(ylabel)
         self.axr.set_xlabel(xlabel)
@@ -60,15 +63,15 @@ class ROCPlot:
         self.axis.grid(grid)
         self.axr.grid(grid)
 
-        self.axis.set_xlim([x*self._scale for x in xlim])
-        self.axr.set_xlim([x*self._scale for x in xlim])
+        self.axis.set_xlim([x * self._scale for x in xlim])
+        self.axr.set_xlim([x * self._scale for x in xlim])
         if not ylim is None:
-            self.axis.set_ylim([y*self._scale for y in ylim])
+            self.axis.set_ylim([y * self._scale for y in ylim])
         if not rlim is None:
             self.axr.set_ylim(rlim)
 
         self.auc = []
-        
+
         self._ncol = ncol
 
     def plot(self, y_true, y_score, **kwargs):
@@ -77,7 +80,7 @@ class ROCPlot:
 
         self.auc.append(metrics.roc_auc_score(y_true, y_score))
 
-        if not hasattr(self, 'fpr_ref'):
+        if not hasattr(self, "fpr_ref"):
             self.fpr_ref = fpr
             self.tpr_ref = tpr
 
@@ -86,7 +89,7 @@ class ROCPlot:
             self.axis.semilogy(tpr[sel] * self._scale, fpr[sel] * self._scale, **kwargs)
         else:
             self.axis.plot(tpr[sel] * self._scale, fpr[sel] * self._scale, **kwargs)
-        r = fpr/np.interp(tpr, self.tpr_ref, self.fpr_ref)
+        r = fpr / np.interp(tpr, self.tpr_ref, self.fpr_ref)
         self.axr.plot(tpr[sel] * self._scale, r[sel], **kwargs)
 
         self.axis.legend(loc="upper left", ncol=self._ncol)
