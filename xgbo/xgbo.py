@@ -4,7 +4,7 @@ import numpy as np
 import xgboost as xgb
 import pandas as pd
 
-from .bayesian_optimization import BayesianOptimization
+from bayes_opt import BayesianOptimization
 from .xgb_callbacks import callback_overtraining, early_stop
 from .xgboost2tmva import convert_model
 
@@ -185,33 +185,29 @@ class XgboFitter(object):
             idx_max = df[eval_col].idxmax()
             max_val = df[eval_col].max()
 
-        self._bo.res["max"] = {'max_val' : max_val,
-                               'max_params' : df.loc[idx_max, list(hyperparams_ranges)].to_dict()}
-
-        for idx in df.index:
-            value = df.loc[idx, eval_col]
-            if self._regression:
-                value = -value
-            self._bo.res["all"]["values"].append(value)
-            self._bo.res["all"]["params"].append(df.loc[idx, list(hyperparams_ranges)].to_dict())
-
         if self._regression:
             df["target"] = -df[eval_col]
         else:
             df["target"] = df[eval_col]
 
-        self._bo.initialize(df[["target"] + list(hyperparams_ranges)])
+        for idx in df.index:
+            value = df.loc[idx, eval_col]
+            if self._regression:
+                value = -value
+
+            params = df.loc[idx, list(hyperparams_ranges)].to_dict()
+            self._bo.register(params, value)
 
     def evaluate_xgb(self, **hyperparameters):
 
         params = format_params(merge_two_dicts(self.params_base,
                                                hyperparameters))
 
-        if len(self._bo.res["all"]["values"]) == 0:
+        if len(self._bo.res) == 0:
             best_test_eval_metric = -9999999.
         else:
             self.summary.to_csv(os.path.join(self._out_dir, "summary.csv"))
-            best_test_eval_metric = self._bo.res["all"]["values"][0]
+            best_test_eval_metric = max([d["target"] for d in  self._bo.res])
 
         feval     = None
         callback_status = {"status": 0}
@@ -254,7 +250,7 @@ class XgboFitter(object):
 
         # Explore the default xgboost hyperparameters
         if not self._tried_default:
-            self._bo.explore({k:[v] for k, v in xgb_default.items()}, eager=True)
+            self._bo.probe({k:[v] for k, v in xgb_default.items()}, lazy=False)
             self._tried_default = True
 
         # Do the Bayesian optimization
@@ -279,9 +275,10 @@ class XgboFitter(object):
 
         if model == "optimized":
             # Set up the parameters for the Bayesian-optimized training
+            argmax = np.argmax([d["target"] for d in self._bo.res])
             params = merge_two_dicts(self.params_base,
-                     format_params(self._bo.res["max"]["max_params"]))
-            params["n_estimators"] = self._early_stops[np.argmax(self._bo.res["all"]["values"])]
+                     format_params(self._bo.res[argmax]["params"]))
+            params["n_estimators"] = self._early_stops[argmax]
 
         self._models[model] = xgb.train(params, xgtrain, params["n_estimators"], verbose_eval=10)
 
@@ -290,11 +287,12 @@ class XgboFitter(object):
 
     @property
     def summary(self):
-        res = dict(self._bo.res["all"])
+        # res is a list of dictionaries with the keys "target" and "params"
+        res = [dict(d) for d in self._bo.res]
 
-        n = len(res["params"])
+        n = len(res)
         for i in range(n):
-            res["params"][i] = format_params(res["params"][i])
+            res[i]["params"] = format_params(res[i]["params"])
 
         data = {}
 
@@ -302,7 +300,7 @@ class XgboFitter(object):
             data[name] = [cvr[name].values[-1] for cvr in self._cv_results]
 
         for k, v in hyperparams_ranges.items():
-            data[k] = [res["params"][i][k] for i in range(n)]
+            data[k] = [res[i]["params"][k] for i in range(n)]
 
         data["n_estimators"] = self._early_stops
         data["callback"] = self._callback_status
