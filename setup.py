@@ -12,12 +12,5 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
-    install_requires=[
-   'numpy',
-   'pandas',
-   'tables',
-   'xgboost',
-   'sklearn',
-   'matplotlib',
-    ]
+    install_requires=["bayesian-optimization", "numpy", "pandas", "tables", "xgboost", "sklearn", "matplotlib"],
 )

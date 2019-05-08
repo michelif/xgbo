@@ -7,7 +7,7 @@ import uproot
 from xgb_bo import XgbBoTrainer
 import xgboost2tmva
 
-out_dir_base = join(cfg["out_dir"], cfg['submit_version'])
+out_dir_base = join(cfg["out_dir"], cfg["submit_version"])
 
 for idname in cfg["trainings"]:
 
@@ -23,8 +23,8 @@ for idname in cfg["trainings"]:
         feature_cols = cfg["trainings"][idname][training_bin]["variables"]
 
         print("Reading data...")
-        ntuple_dir = join(cfg['ntuple_dir'], cfg['submit_version'])
-        ntuple_file = join(ntuple_dir, 'train_eval.root')
+        ntuple_dir = join(cfg["ntuple_dir"], cfg["submit_version"])
+        ntuple_file = join(ntuple_dir, "train_eval.root")
         root_file = uproot.open(ntuple_file)
         tree = root_file["ntuplizer/tree"]
 
@@ -32,7 +32,7 @@ for idname in cfg["trainings"]:
 
         df = df.query(cfg["selection_base"])
         df = df.query(cfg["trainings"][idname][training_bin]["cut"])
-        df.eval('y = ({0}) + 2 * ({1}) - 1'.format(cfg["selection_bkg"], cfg["selection_sig"]), inplace=True)
+        df.eval("y = ({0}) + 2 * ({1}) - 1".format(cfg["selection_bkg"], cfg["selection_sig"]), inplace=True)
 
         print("Running bayesian optimized training...")
         xgb_bo_trainer = XgbBoTrainer(data=df, X_cols=feature_cols, y_col="y")
@@ -40,13 +40,15 @@ for idname in cfg["trainings"]:
 
         print("Saving weight files...")
         tmvafile = join(out_dir, "weights.xml")
-        xgboost2tmva.convert_model(xgb_bo_trainer.models["bo"]._Booster.get_dump(),
-                                   input_variables = list(zip(feature_cols, len(feature_cols)*['F'])),
-                                   output_xml = tmvafile)
+        xgboost2tmva.convert_model(
+            xgb_bo_trainer.models["bo"]._Booster.get_dump(),
+            input_variables=list(zip(feature_cols, len(feature_cols) * ["F"])),
+            output_xml=tmvafile,
+        )
         os.system("xmllint --format {0} > {0}.tmp".format(tmvafile))
         os.system("mv {0} {0}.bak".format(tmvafile))
         os.system("mv {0}.tmp {0}".format(tmvafile))
-        os.system("cd "+ out_dir + " && gzip -f weights.xml")
+        os.system("cd " + out_dir + " && gzip -f weights.xml")
 
         print("Saving bayesian optimization results...")
         xgb_bo_trainer.get_results_df().to_csv(join(out_dir, "xgb_bo_results.csv"))
@@ -59,8 +61,7 @@ for idname in cfg["trainings"]:
 
         print("Saving reduced data frame...")
         # Create a data frame with bdt outputs and kinematics to calculate the working points
-        df_reduced = df.loc[xgb_bo_trainer.y_test.index,
-                            ["ele_pt", "scl_eta", "y", "Fall17NoIsoV2RawVals", "genNpu"]]
+        df_reduced = df.loc[xgb_bo_trainer.y_test.index, ["ele_pt", "scl_eta", "y", "Fall17NoIsoV2RawVals", "genNpu"]]
         df_reduced["bdt_score_default"] = xgb_bo_trainer.get_score("default")
         df_reduced["bdt_score_bo"] = xgb_bo_trainer.get_score("bo")
-        df_reduced.to_hdf(join(out_dir,'pt_eta_score.h5'), key='pt_eta_score')
+        df_reduced.to_hdf(join(out_dir, "pt_eta_score.h5"), key="pt_eta_score")

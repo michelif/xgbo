@@ -2,8 +2,8 @@ import time
 import xgboost as xgb
 from xgboost import rabit
 
-def callback_overtraining(best_test_auc, callback_status):
 
+def callback_overtraining(best_test_auc, callback_status):
     def callback(env):
         train_auc = env.evaluation_result_list[0][1]
         test_auc = env.evaluation_result_list[1][1]
@@ -18,6 +18,7 @@ def callback_overtraining(best_test_auc, callback_status):
 
     return callback
 
+
 def callback_timeout(max_time, best_test_auc, callback_status, n_fit=10):
 
     start_time = time.time()
@@ -25,7 +26,7 @@ def callback_timeout(max_time, best_test_auc, callback_status, n_fit=10):
     last_n_times = []
     last_n_test_auc = []
 
-    status = {'counter': 0}
+    status = {"counter": 0}
 
     def callback(env):
 
@@ -52,14 +53,14 @@ def callback_timeout(max_time, best_test_auc, callback_status, n_fit=10):
             return
 
         poly = np.polyfit(last_n_times, last_n_test_auc, deg=1)
-        guessed_test_auc_at_max_time  = np.polyval(poly, max_time)
+        guessed_test_auc_at_max_time = np.polyval(poly, max_time)
 
         if guessed_test_auc_at_max_time < best_test_auc and best_test_auc > 0.0:
-            status['counter'] = status['counter'] + 1
+            status["counter"] = status["counter"] + 1
         else:
-            status['counter'] = 0
+            status["counter"] = 0
 
-        if status['counter'] == n_fit:
+        if status["counter"] == n_fit:
             callback_status["status"] = 2
             raise xgb.core.EarlyStopException(env.iteration)
             print("Test AUC does not converge well. Stop boosting.")
@@ -67,17 +68,19 @@ def callback_timeout(max_time, best_test_auc, callback_status, n_fit=10):
 
     return callback
 
+
 def _fmt_metric(value, show_stdv=True):
     """format metric string"""
     if len(value) == 2:
-        return '%s:%g' % (value[0], value[1])
+        return "%s:%g" % (value[0], value[1])
     elif len(value) == 3:
         if show_stdv:
-            return '%s:%g+%g' % (value[0], value[1], value[2])
+            return "%s:%g+%g" % (value[0], value[1], value[2])
         else:
-            return '%s:%g' % (value[0], value[1])
+            return "%s:%g" % (value[0], value[1])
     else:
         raise ValueError("wrong metric value")
+
 
 # Modification of the official early_stop callback to only trigger it from the nth round on
 def early_stop(stopping_rounds, start_round=0, maximize=False, verbose=True, eval_idx=-1):
@@ -111,16 +114,15 @@ def early_stop(stopping_rounds, start_round=0, maximize=False, verbose=True, eva
         bst = env.model
 
         if len(env.evaluation_result_list) == 0:
-            raise ValueError('For early stopping you need at least one set in evals.')
+            raise ValueError("For early stopping you need at least one set in evals.")
         if len(env.evaluation_result_list) > 1 and verbose:
-            msg = ("Multiple eval metrics have been passed: "
-                   "'{0}' will be used for early stopping.\n\n")
+            msg = "Multiple eval metrics have been passed: " "'{0}' will be used for early stopping.\n\n"
             rabit.tracker_print(msg.format(env.evaluation_result_list[eval_idx][0]))
-        maximize_metrics = ('auc', 'map', 'ndcg')
-        maximize_at_n_metrics = ('auc@', 'map@', 'ndcg@')
+        maximize_metrics = ("auc", "map", "ndcg")
+        maximize_at_n_metrics = ("auc@", "map@", "ndcg@")
         maximize_score = maximize
         metric_label = env.evaluation_result_list[eval_idx][0]
-        metric = metric_label.split('-', 1)[-1]
+        metric = metric_label.split("-", 1)[-1]
 
         if any(metric.startswith(x) for x in maximize_at_n_metrics):
             maximize_score = True
@@ -132,21 +134,21 @@ def early_stop(stopping_rounds, start_round=0, maximize=False, verbose=True, eva
             msg = "Will train until {} hasn't improved in {} rounds.\n"
             rabit.tracker_print(msg.format(metric_label, stopping_rounds))
 
-        state['maximize_score'] = maximize_score
-        state['best_iteration'] = 0
+        state["maximize_score"] = maximize_score
+        state["best_iteration"] = 0
         if maximize_score:
-            state['best_score'] = float('-inf')
+            state["best_score"] = float("-inf")
         else:
-            state['best_score'] = float('inf')
+            state["best_score"] = float("inf")
 
         if bst is not None:
-            if bst.attr('best_score') is not None:
-                state['best_score'] = float(bst.attr('best_score'))
-                state['best_iteration'] = int(bst.attr('best_iteration'))
-                state['best_msg'] = bst.attr('best_msg')
+            if bst.attr("best_score") is not None:
+                state["best_score"] = float(bst.attr("best_score"))
+                state["best_iteration"] = int(bst.attr("best_iteration"))
+                state["best_msg"] = bst.attr("best_msg")
             else:
-                bst.set_attr(best_iteration=str(state['best_iteration']))
-                bst.set_attr(best_score=str(state['best_score']))
+                bst.set_attr(best_iteration=str(state["best_iteration"]))
+                bst.set_attr(best_score=str(state["best_score"]))
         else:
             assert env.cvfolds is not None
 
@@ -158,24 +160,23 @@ def early_stop(stopping_rounds, start_round=0, maximize=False, verbose=True, eva
         score = env.evaluation_result_list[eval_idx][1]
         if len(state) == 0:
             init(env)
-        best_score = state['best_score']
-        best_iteration = state['best_iteration']
-        maximize_score = state['maximize_score']
-        if (maximize_score and score > best_score) or \
-                (not maximize_score and score < best_score):
-            msg = '[%d]\t%s' % (
-                env.iteration,
-                '\t'.join([_fmt_metric(x) for x in env.evaluation_result_list]))
-            state['best_msg'] = msg
-            state['best_score'] = score
-            state['best_iteration'] = env.iteration
+        best_score = state["best_score"]
+        best_iteration = state["best_iteration"]
+        maximize_score = state["maximize_score"]
+        if (maximize_score and score > best_score) or (not maximize_score and score < best_score):
+            msg = "[%d]\t%s" % (env.iteration, "\t".join([_fmt_metric(x) for x in env.evaluation_result_list]))
+            state["best_msg"] = msg
+            state["best_score"] = score
+            state["best_iteration"] = env.iteration
             # save the property to attributes, so they will occur in checkpoint.
             if env.model is not None:
-                env.model.set_attr(best_score=str(state['best_score']),
-                                   best_iteration=str(state['best_iteration']),
-                                   best_msg=state['best_msg'])
+                env.model.set_attr(
+                    best_score=str(state["best_score"]),
+                    best_iteration=str(state["best_iteration"]),
+                    best_msg=state["best_msg"],
+                )
         elif env.iteration - best_iteration >= stopping_rounds:
-            best_msg = state['best_msg']
+            best_msg = state["best_msg"]
             if verbose and env.rank == 0:
                 msg = "Stopping. Best iteration:\n{}\n\n"
                 rabit.tracker_print(msg.format(best_msg))
